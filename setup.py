@@ -259,6 +259,7 @@ Terminal=false
 
 
 if __name__ == '__main__':
+    run('clear', interact=False)
     pt = Pianoteq('/home/pi')
     notice('System version:')
     print(f'Raspberry Pi OS {pt.arch_bit} v{rp.issue_date}')
