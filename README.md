@@ -25,9 +25,9 @@ If you want to adjust something on it, just double click the desktop icon to ope
 
 ## FAQ
 
-1. [Q] Why use the Beta version of Raspberry Pi OS (64 bit) instead of the stable 32 bit version, or Ubuntu Mate (64 bit)?
-    - [A] 64 bit allows for better performance, and Raspberry Pi OS comes with VNC Server, which saves a lot of work.
-2. [Q] Is Pianoteq playable on it?
-    - [A] Sure it is. I get a Performance Index of 32 on it. The internal sample rate set to 24000 Hz, and max polyphony is set to 128. No crackles or dropouts. Playing is quite enjoyable.
-3. [Q] Can I try this on other machines / OS version?
-    - [A] Not recommended. I haven't tested it on other machines or OS versions.
+1. `Q:` Why use the Beta version of Raspberry Pi OS (64 bit) instead of the stable 32 bit version, or Ubuntu Mate (64 bit)?
+    - `A:` 64 bit allows for better performance, and Raspberry Pi OS comes with VNC Server, which saves a lot of work.
+2. `Q:` Is Pianoteq playable on it?
+    - `A:` Sure it is. I get a Performance Index of 32 on it. The internal sample rate set to 24000 Hz, and max polyphony is set to 128. No crackles or dropouts. Playing is quite enjoyable.
+3. `Q:` Can I try this on other machines / OS version?
+    - `A:` Not recommended. I haven't tested it on other machines or OS versions.
