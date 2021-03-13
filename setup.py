@@ -216,7 +216,7 @@ Terminal=false
 """
         run(
             'wget',
-            'https://xxxxxxxxx.png',
+            'https://raw.githubusercontent.com/youfou/pianoteq-pi/main/icon.png',
             '-O', f'{os.path.join(self.pianoteq_dir, "icon.png")}'
         )
 
