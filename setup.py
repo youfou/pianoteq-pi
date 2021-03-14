@@ -238,9 +238,6 @@ Terminal=false
             fp.write(desktop_entry_content)
         run('desktop-file-validate', self.desktop_entry_path)
 
-    def chown(self, ):
-        run('chown', '-R', 'pi:pi', self.pianoteq_dir)
-
     def install(self):
         notify(f'Installing Pianoteq to {self.parent_dir} ...')
         self.install_dependencies()
@@ -255,10 +252,11 @@ Terminal=false
         self.create_start_sh()
         self.create_desktop_entry()
         self.create_service()
-        self.chown()
+        run('chown', '-R', 'pi:pi', self.pianoteq_dir)
         rp.overclock_cpu()
         rp.disable_smsc95xx_turbo_mode()
         rp.modify_account_limits()
+        run('systemctl', 'start', 'pianoteq')
         notify('Pianoteq has been installed/updated.')
 
     def uninstall(self):
