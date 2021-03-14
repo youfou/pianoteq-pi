@@ -137,6 +137,15 @@ class Pianoteq:
 
     @staticmethod
     def install_dependencies():
+        def which_cmd(cmd):
+            try:
+                return run('which', cmd, interact=False)
+            except subprocess.CalledProcessError as e:
+                if e.returncode == 1:
+                    return False
+
+        if which_cmd('7za') and which_cmd('cpufreq-set'):
+            return
         notify('Installing dependencies ...')
         run('apt', 'update')
         run('apt', 'install', 'p7zip-full', 'cpufrequtils', '-y')
