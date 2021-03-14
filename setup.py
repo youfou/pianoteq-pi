@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
+import dbm
 import os
 import re
 import stat
 import subprocess
 import sys
 
+DEFAULT_INSTALL_LOCATION = '/home/pi/'
+CONFIG_PATH = '/home/pi/.config/pianoteq-pi.dbm'
 script_dir, script_filename = os.path.split(__file__)
 
 
@@ -16,7 +19,7 @@ def hl(text, style=1, margin=False):
     return f'{nl}\033[{style}m{text}{nl}\033[0m'
 
 
-def notice(text):
+def notify(text):
     print(hl(text, style=7, margin=True))
 
 
@@ -48,6 +51,11 @@ class RPOS:
         self.arch = None
         self._get_issue_date()
         self._get_arch()
+        try:
+            self.arch_bit = dict(aarch64='arm-64bit', armv7l='arm-32bit', x86_64='x86-64bit')[self.arch]
+        except KeyError:
+            raise EnvironmentError(f'Unknown arch: {self.arch}')
+        self.reboot_required = False
 
     def _get_issue_date(self):
         rpi_issue = run('cat', '/etc/rpi-issue', interact=False)
@@ -59,20 +67,20 @@ class RPOS:
     def _get_arch(self):
         self.arch = run('uname', '-m', interact=False)
 
-    @staticmethod
-    def _config_modifier(path, rp_to_remove: re.Pattern, new_items: list, sep='\n'):
+    def _config_modifier(self, path, rp_to_remove: re.Pattern, new_items: list, sep='\n'):
         with open(path) as fp:
-            config = fp.read().strip().split(sep)
-        new_config = [line for line in config if not rp_to_remove.search(line)]
+            old_config = fp.read().strip().split(sep)
+        new_config = [line for line in old_config if not rp_to_remove.search(line)]
         new_config = sep.join(new_config).strip(sep)
         new_config += sep + sep.join(new_items) + sep
-        if new_config != config:
+        if new_config != old_config:
             with open(path, 'w') as fp:
                 fp.write(new_config)
+            self.reboot_required = True
             return new_config
 
     def overclock_cpu(self, freq=2000, voltage=6):
-        notice(f'Overclocking CPU: freq={freq} voltage={voltage} ...')
+        notify(f'Overclocking CPU: freq={freq} voltage={voltage} ...')
         self._config_modifier(
             path=self.config_path,
             rp_to_remove=re.compile(r'^\s*(arm_freq|over_voltage)\b'),
@@ -80,7 +88,7 @@ class RPOS:
         )
 
     def disable_smsc95xx_turbo_mode(self):
-        notice('Disabling smsc95xx.turbo_mode ...')
+        notify('Disabling smsc95xx.turbo_mode ...')
         self._config_modifier(
             path=self.cmdline_path,
             rp_to_remove=re.compile(r'^\s*smsc95xx\.turbo_mode\b'),
@@ -89,7 +97,7 @@ class RPOS:
         )
 
     def modify_account_limits(self):
-        notice('Modifying account limits ...')
+        notify('Modifying account limits ...')
         self._config_modifier(
             path=self.security_limits_path,
             rp_to_remove=re.compile(r'^\s*^@audio\s*-\s*(rtprio|nice|memlock)\s+'),
@@ -109,14 +117,10 @@ class Pianoteq:
     service_path = '/lib/systemd/system/pianoteq.service'
     all_arch_bits = ['arm-64bit', 'arm-32bit', 'x86-64bit']
 
-    def __init__(self, parent_dir='/home/pi/'):
-        self.parent_dir = parent_dir
+    def __init__(self, parent_dir=None):
+        self.parent_dir = parent_dir or DEFAULT_INSTALL_LOCATION
         self.pianoteq_dir = None
         self.edition_suffix = None
-        try:
-            self.arch_bit = dict(aarch64='arm-64bit', armv7l='arm-32bit', x86_64='x86-64bit')[rp.arch]
-        except KeyError:
-            raise EnvironmentError(f'Unknown arch: {rp.arch}')
         self.find_existing_installation()
 
     def find_existing_installation(self):
@@ -125,7 +129,7 @@ class Pianoteq:
                 m = re.search(r'^Pianoteq 7( \w+)?$', folder)
                 if m:
                     path = os.path.join(root, folder)
-                    if self.arch_bit in os.listdir(path) and os.path.isdir(os.path.join(path, self.arch_bit)):
+                    if rp.arch_bit in os.listdir(path) and os.path.isdir(os.path.join(path, rp.arch_bit)):
                         self.edition_suffix = m.group(1) or ''
                         self.pianoteq_dir = path
                         return self.pianoteq_dir
@@ -133,7 +137,7 @@ class Pianoteq:
 
     @staticmethod
     def install_dependencies():
-        notice('Installing dependencies ...')
+        notify('Installing dependencies ...')
         run('apt', 'update')
         run('apt', 'install', 'p7zip-full', 'cpufrequtils', '-y')
 
@@ -147,13 +151,13 @@ class Pianoteq:
 
     def extract_package(self):
         package_path = self._find_installer_package()
-        notice(f'Extracting package {package_path} ...')
+        notify(f'Extracting package {package_path} ...')
         content_list = run('7za', 'l', '-slt', package_path, interact=False)
         root_dir = re.search(r'^-{5,}\n^Path = (.+)$', content_list, re.M).group(1).split('/')[0]
         m = re.search(r'^Pianoteq \d+( \w+)?$', root_dir)
         self.edition_suffix = m.group(1) or ''
         exclusion = self.all_arch_bits[:]
-        exclusion.remove(self.arch_bit)
+        exclusion.remove(rp.arch_bit)
         exclusion = ['-xr!' + e for e in exclusion]
         run('7za', 'x', package_path, '-o' + self.parent_dir, '-aoa', *exclusion)
         self.pianoteq_dir = os.path.join(self.parent_dir, root_dir)
@@ -164,10 +168,10 @@ class Pianoteq:
         return os.path.join(self.pianoteq_dir, 'start.sh')
 
     def create_start_sh(self):
-        notice('Creating start.sh for Pianoteq ...')
+        notify('Creating start.sh for Pianoteq ...')
         start_sh_content = f"""#!/bin/bash
 
-exec_path="{self.pianoteq_dir}/{self.arch_bit}/Pianoteq 7{self.edition_suffix}"
+exec_path="{self.pianoteq_dir}/{rp.arch_bit}/Pianoteq 7{self.edition_suffix}"
 base_args="--multicore max --do-not-block-screensaver --midimapping TouchOSC"
 
 base_cmd=("${{exec_path}}" $base_args)
@@ -191,7 +195,7 @@ sudo cpufreq-set -r -g ondemand
         os.chmod(self.start_sh_path, os.stat(self.start_sh_path).st_mode | stat.S_IEXEC)
 
     def create_service(self):
-        notice('Creating service for Pianoteq ...')
+        notify('Creating service for Pianoteq ...')
         service_content = f"""[Unit]
 Description=Start Pianoteq 7{self.edition_suffix}
 After=graphical.target
@@ -215,7 +219,7 @@ WantedBy=graphical.target
         run('sudo', 'systemctl', 'enable', 'pianoteq')
 
     def create_desktop_entry(self):
-        notice('Creating desktop entry for Pianoteq ...')
+        notify('Creating desktop entry for Pianoteq ...')
         desktop_entry_content = f"""[Desktop Entry]
 Name=Pianoteq 7
 Exec="{self.pianoteq_dir}/start.sh"
@@ -238,13 +242,14 @@ Terminal=false
         run('chown', '-R', 'pi:pi', self.pianoteq_dir)
 
     def install(self):
-        notice(f'Installing Pianoteq to {self.parent_dir} ...')
+        notify(f'Installing Pianoteq to {self.parent_dir} ...')
         self.install_dependencies()
         try:
             self.extract_package()
         except LookupError:
+            notify('Pianoteq 7z/zip package not found')
             sys.exit(
-                'Please download Pianoteq from Modartt website and put the 7z/zip package here.\n'
+                'Please download Pianoteq from Modartt website and put the 7z/zip package under the same folder.\n'
                 'Download: https://www.modartt.com/user_area#downloads'
             )
         self.create_start_sh()
@@ -254,10 +259,10 @@ Terminal=false
         rp.overclock_cpu()
         rp.disable_smsc95xx_turbo_mode()
         rp.modify_account_limits()
-        notice('Pianoteq has been installed/updated.')
+        notify('Pianoteq has been installed/updated.')
 
     def uninstall(self):
-        notice(f'Uninstalling Pianoteq from {self.parent_dir} ...')
+        notify(f'Uninstalling Pianoteq from {self.parent_dir} ...')
         run('systemctl', 'stop', 'pianoteq')
         run('systemctl', 'disable', 'pianoteq')
         run('rm', self.service_path)
@@ -266,15 +271,27 @@ Terminal=false
         run('rm', '-rf', self.pianoteq_dir)
         self.pianoteq_dir = None
         self.edition_suffix = None
-        notice('Pianoteq has been uninstalled.')
+        notify('Pianoteq has been uninstalled.')
 
 
 if __name__ == '__main__':
-    pt = Pianoteq('/home/pi')
-    notice('System version:')
-    print(f'Raspberry Pi OS {pt.arch_bit} v{rp.issue_date}')
+    notify('System version:')
+    print(f'Raspberry Pi OS {rp.arch_bit} ({rp.issue_date})')
+    notify('Specify install location for Pianoteq')
+    with dbm.open(CONFIG_PATH, 'c') as db:
+        install_location = db.setdefault('install_location', DEFAULT_INSTALL_LOCATION.encode()).decode()
+        install_location = input(f'Install location (default: "{install_location}"): ').strip() or install_location
+        if not os.path.exists(install_location):
+            to_create = input(f'"{install_location}" does not exist. Would you like to create it now? (Y/n)')
+            if to_create.strip().lower().startswith('y') or not to_create:
+                os.makedirs(install_location)
+                run('chown', 'pi:pi', install_location)
+            else:
+                sys.exit(0)
+        db['install_location'] = install_location
+        pt = Pianoteq(install_location)
     if pt.pianoteq_dir:
-        notice('You have already installed Pianoteq. What would you like to do?')
+        notify('You have already installed Pianoteq. What would you like to do?')
         print(
             '1. Re-install / Update\n'
             '2. Uninstall'
@@ -291,3 +308,7 @@ if __name__ == '__main__':
                 break
     else:
         pt.install()
+    if rp.reboot_required:
+        reboot = input('Your system has been tweeted during the installation, reboot now? (Y/n): ')
+        if reboot.strip().lower().startswith('y') or not reboot:
+            run('reboot')
