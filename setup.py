@@ -69,8 +69,8 @@ class RPOS:
 
     def _config_modifier(self, path, rp_to_remove: re.Pattern, new_items: list, sep='\n'):
         with open(path) as fp:
-            old_config = fp.read().strip().split(sep)
-        new_config = [line for line in old_config if not rp_to_remove.search(line)]
+            old_config = fp.read()
+        new_config = [line for line in old_config.strip().split(sep) if not rp_to_remove.search(line)]
         new_config = sep.join(new_config).strip(sep)
         new_config += sep + sep.join(new_items) + sep
         if new_config != old_config:
