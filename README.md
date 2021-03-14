@@ -14,7 +14,7 @@ And `pianoteq-pi` might be the fastest way to install Pianoteq onto your Raspber
    - Or download directly on your Raspberry Pi.
 3. Run the following command in the same folder of the 7z/zip package:
 ```shell
-wget -O setup.py https://github.com/youfou/pianoteq-pi/raw/main/setup.py && sudo python3 setup.py
+wget -O setup.py https://git.io/JqVD6 && sudo python3 setup.py
 ```
 Simple as that.
 
