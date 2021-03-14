@@ -14,7 +14,7 @@ And `pianoteq-pi` might be the fastest way to install Pianoteq onto your Raspber
    - Or download directly on your Raspberry Pi.
 3. Run the following command in the same folder of the 7z/zip package:
 ```shell
-wget -O setup.py https://git.io/JqVD6 && sudo python3 setup.py
+wget -qO setup.py https://git.io/JqVD6 && sudo python3 setup.py
 ```
 Simple as that.
 
@@ -35,10 +35,11 @@ If you want to adjust something on it, just double click the desktop icon to ope
    - sets CPUs to "On Demand" mode when quit Pianoteq
 4. Creates a desktop entry for Pianoteq, so you can open it easily by clicking the icon
 5. Creates a system service to run Pianoteq headlessly every time the system startups
-6. Overclocks the CPU to 2000 MHz at the 6th voltage level to get better performance as well
-7. Disables smsc95xx.turbo_mode as Pianoteq officially advised
-8. Modifies the "account limits" as Pianoteq officially advised
-9. Checks if you have already installed Pianoteq and can re-install or uninstall it if you want
+6. Set a default resolution so that you can run Pianoteq while not connecting to a display
+7. Overclocks the CPU to 2000 MHz at the 6th voltage level to get better performance as well
+8. Disables smsc95xx.turbo_mode as Pianoteq officially advised
+9. Modifies the "account limits" as Pianoteq officially advised
+10. Checks if you have already installed Pianoteq and can re-install or uninstall it if you want
 
 ## FAQ
 

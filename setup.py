@@ -79,6 +79,14 @@ class RPOS:
             self.reboot_required = True
             return new_config
 
+    def set_default_resolution(self):
+        notify('Setting default resolution ...')
+        self._config_modifier(
+            path=self.config_path,
+            rp_to_remove=re.compile(r'^\s*(hdmi_force_hotplug|hdmi_group|hdmi_mode)\b'),
+            new_items=['hdmi_force_hotplug=1', 'hdmi_group=2', 'hdmi_mode=4'],
+        )
+
     def overclock_cpu(self, freq=2000, voltage=6):
         notify(f'Overclocking CPU: freq={freq} voltage={voltage} ...')
         self._config_modifier(
@@ -262,6 +270,7 @@ Terminal=false
         self.create_desktop_entry()
         self.create_service()
         run('chown', '-R', 'pi:pi', self.pianoteq_dir)
+        rp.set_default_resolution()
         rp.overclock_cpu()
         rp.disable_smsc95xx_turbo_mode()
         rp.modify_account_limits()
