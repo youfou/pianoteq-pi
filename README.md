@@ -1,6 +1,6 @@
 # pianoteq-pi
 
-> Install Pianoteq on your Raspberry Pi in one line ⚡️
+> Install Pianoteq and tweak your system on Raspberry Pi in one line ⚡️
 
 [Pianoteq](https://pianoteq.com/) is probably the only top-notch virtual piano in the world that can be installed on Raspberry Pi. 
 And `pianoteq-pi` might be the fastest way to install Pianoteq onto your Raspberry Pi.
@@ -20,9 +20,25 @@ Simple as that.
 
 ![](https://raw.githubusercontent.com/youfou/pianoteq-pi/main/screenshot.png)
 
-When installed in this way, Pianoteq will run heedlessly (No GUI, to get the best performance) on every startup.
+After installed in this way, Pianoteq will run headlessly (No GUI, to get better performance) on every system boot.
 If you want to adjust something on it, just double click the desktop icon to open GUI.
 
+## What this script actually does?
+
+1. Installs dependencies:
+   - `p7zip-full` - to extract the Pianoteq 7z/zip package
+   - `cpufrequtils` - to improve CPU performance while running Pianoteq
+2. Extracts the Pianoteq 7z/zip package to `/home/pi/`
+3. Creates a `start.sh` script under the Pianoteq folder, and it:
+   - sets CPUs to "Performance" mode while running Pianoteq
+   - runs Pianoteq as a GUI program or headlessly for better performance 
+   - sets CPUs to "On Demand" mode when quit Pianoteq
+4. Creates a desktop entry for Pianoteq, so you can open it easily by clicking the icon
+5. Creates a system service to run Pianoteq headlessly every time the system startups
+6. Overclocks the CPU to 2000 MHz at the 6th voltage level to get better performance as well
+7. Disables smsc95xx.turbo_mode as Pianoteq officially advised
+8. Modifies the "account limits" as Pianoteq officially advised
+9. Checks if you have already installed Pianoteq and can re-install or uninstall it if you want
 
 ## FAQ
 

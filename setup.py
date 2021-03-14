@@ -40,6 +40,7 @@ if os.getuid():
 
 class RPOS:
     cmdline_path = '/boot/cmdline.txt'
+    config_path = '/boot/config.txt'
     security_limits_path = '/etc/security/limits.conf'
 
     def __init__(self):
@@ -58,37 +59,46 @@ class RPOS:
     def _get_arch(self):
         self.arch = run('uname', '-m', interact=False)
 
+    @staticmethod
+    def _config_modifier(path, rp_to_remove: re.Pattern, new_items: list, sep='\n'):
+        with open(path) as fp:
+            config = fp.read().strip().split(sep)
+        new_config = [line for line in config if not rp_to_remove.search(line)]
+        new_config = sep.join(new_config).strip(sep)
+        new_config += sep + sep.join(new_items) + sep
+        if new_config != config:
+            with open(path, 'w') as fp:
+                fp.write(new_config)
+            return new_config
+
+    def overclock_cpu(self, freq=2000, voltage=6):
+        notice(f'Overclocking CPU: freq={freq} voltage={voltage} ...')
+        self._config_modifier(
+            path=self.config_path,
+            rp_to_remove=re.compile(r'^\s*(arm_freq|over_voltage)\b'),
+            new_items=[f'arm_freq={freq}', f'over_voltage={voltage}'],
+        )
+
     def disable_smsc95xx_turbo_mode(self):
         notice('Disabling smsc95xx.turbo_mode ...')
-        with open(self.cmdline_path) as fp:
-            cmdline = fp.read().strip()
-        regexp = re.compile(r'smsc95xx\.turbo_mode\S*')
-        param = 'smsc95xx.turbo_mode=N'
-        if regexp.search(cmdline):
-            cmdline = regexp.sub(param, cmdline)
-        else:
-            cmdline += f' {param}'
-        with open(self.cmdline_path, 'w') as fp:
-            fp.write(cmdline)
+        self._config_modifier(
+            path=self.cmdline_path,
+            rp_to_remove=re.compile(r'^\s*smsc95xx\.turbo_mode\b'),
+            new_items=['smsc95xx.turbo_mode=N'],
+            sep=' '
+        )
 
     def modify_account_limits(self):
         notice('Modifying account limits ...')
-        with open(self.security_limits_path) as fp:
-            conf = fp.read()
-        conf = conf.split('\n')
-        limits = dict(rtprio=90, nice=-10, memlock=500000)
-        regexp = re.compile(r'^@audio\s+-\s+(' + '|'.join(limits.keys()) + r')\s+[\d\-]+')
-        to_remove = list()
-        for i, line in enumerate(conf):
-            if regexp.search(line):
-                to_remove.append(i)
-        for i in to_remove[::-1]:
-            conf.pop(i)
-        for k, v in limits.items():
-            conf.append(f'@audio - {k} {v}')
-        conf = '\n'.join(conf)
-        with open(self.security_limits_path, 'w') as fp:
-            fp.write(conf)
+        self._config_modifier(
+            path=self.security_limits_path,
+            rp_to_remove=re.compile(r'^\s*^@audio\s*-\s*(rtprio|nice|memlock)\s+'),
+            new_items=[
+                '@audio - rtprio 90',
+                '@audio - nice -10',
+                '@audio - memlock 500000'
+            ]
+        )
 
 
 rp = RPOS()
@@ -125,7 +135,7 @@ class Pianoteq:
     def install_dependencies():
         notice('Installing dependencies ...')
         run('apt', 'update')
-        run('apt', 'install', 'cpufrequtils', 'p7zip-full', '-y')
+        run('apt', 'install', 'p7zip-full', 'cpufrequtils', '-y')
 
     @staticmethod
     def _find_installer_package():
@@ -229,8 +239,6 @@ Terminal=false
 
     def install(self):
         notice(f'Installing Pianoteq to {self.parent_dir} ...')
-        rp.disable_smsc95xx_turbo_mode()
-        rp.modify_account_limits()
         self.install_dependencies()
         try:
             self.extract_package()
@@ -243,7 +251,10 @@ Terminal=false
         self.create_desktop_entry()
         self.create_service()
         self.chown()
-        notice('Pianoteq has been installed or updated.')
+        rp.overclock_cpu()
+        rp.disable_smsc95xx_turbo_mode()
+        rp.modify_account_limits()
+        notice('Pianoteq has been installed/updated.')
 
     def uninstall(self):
         notice(f'Uninstalling Pianoteq from {self.parent_dir} ...')
