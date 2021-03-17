@@ -18,7 +18,7 @@ wget -qO setup.py https://git.io/JqVD6 && sudo python3 setup.py
 ```
 Simple as that.
 
-![](https://raw.githubusercontent.com/youfou/pianoteq-pi/main/screenshot.png)
+![](https://raw.githubusercontent.com/youfou/pianoteq-pi/main/recording.gif)
 
 After installed in this way, Pianoteq will run headlessly (No GUI, to get better performance) on every system boot.
 If you want to adjust something on it, just double click the desktop icon to open GUI.
