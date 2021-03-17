@@ -271,7 +271,6 @@ Terminal=false
         self.create_service()
         run('chown', '-R', 'pi:pi', self.pianoteq_dir)
         rp.set_default_resolution()
-        rp.overclock_cpu()
         rp.disable_smsc95xx_turbo_mode()
         rp.modify_account_limits()
         run('systemctl', 'start', 'pianoteq')
