@@ -310,7 +310,7 @@ def ask_to_overclock_cpu():
     return number_menu([
         ('Overclock to 2000 MHz @ 6th voltage level', oc_2000_6),
         ('Overclock to 1750 MHz @ 2nd voltage level', oc_1750_2),
-        ('Cancel overclocking', cancel_oc),
+        ('Restore back to the stock CPU frequency and voltage', cancel_oc),
     ])
 
 
