@@ -87,12 +87,12 @@ class RPOS:
             new_items=['hdmi_force_hotplug=1', 'hdmi_group=2', 'hdmi_mode=4'],
         )
 
-    def overclock_cpu(self, freq=2000, voltage=6):
+    def overclock_cpu(self, freq=None, voltage=None):
         notify(f'Overclocking CPU: freq={freq} voltage={voltage} ...')
         self._config_modifier(
             path=self.config_path,
             rp_to_remove=re.compile(r'^\s*(arm_freq|over_voltage)\b'),
-            new_items=[f'arm_freq={freq}', f'over_voltage={voltage}'],
+            new_items=[f'arm_freq={freq or 2000}', f'over_voltage={voltage or 6}'] if freq else [],
         )
 
     def disable_smsc95xx_turbo_mode(self):
@@ -290,6 +290,30 @@ Terminal=false
         notify('Pianoteq has been uninstalled.')
 
 
+def number_menu(callbacks: list):
+    while True:
+        for i, (prompt, _) in enumerate(callbacks):
+            print(f'{i + 1}. {prompt}')
+        choice = input('\nEnter a number or "q" to quit: ').strip()
+        if choice.lower().startswith('q'):
+            sys.exit(0)
+        number = int(choice)
+        if number <= len(callbacks):
+            return callbacks[number - 1][1]()
+
+
+def ask_to_overclock_cpu():
+    oc_2000_6 = lambda: rp.overclock_cpu(2000, 6)
+    oc_1750_2 = lambda: rp.overclock_cpu(1750, 2)
+    cancel_oc = lambda: rp.overclock_cpu()
+    notify('Would you like to overclock the CPU of your Raspberry Pi?')
+    return number_menu([
+        ('Overclock to 2000 MHz @ 6th voltage level', oc_2000_6),
+        ('Overclock to 1750 MHz @ 2nd voltage level', oc_1750_2),
+        ('Cancel overclocking', cancel_oc),
+    ])
+
+
 if __name__ == '__main__':
     notify('System version:')
     print(f'Raspberry Pi OS {rp.arch_bit} ({rp.issue_date})')
@@ -308,22 +332,15 @@ if __name__ == '__main__':
         pt = Pianoteq(install_location)
     if pt.pianoteq_dir:
         notify('You have already installed Pianoteq. What would you like to do?')
-        print(
-            '1. Re-install / Update\n'
-            '2. Uninstall'
-        )
-        while True:
-            choice = input('Enter a number or "q" to quit: ').strip()
-            if choice.lower().startswith('q'):
-                sys.exit(0)
-            elif choice == '1':
-                pt.install()
-                break
-            elif choice == '2':
-                pt.uninstall()
-                break
+        number_menu([
+            ('Re-install / Update', pt.install),
+            ('Uninstall', pt.uninstall),
+            ('Overclock CPU or cancel overclocking', ask_to_overclock_cpu)
+        ])
+
     else:
         pt.install()
+        ask_to_overclock_cpu()
     if rp.reboot_required:
         reboot = input('Your system has been tweeted during the installation, reboot now? (Y/n): ')
         if reboot.strip().lower().startswith('y') or not reboot:
