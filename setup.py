@@ -161,7 +161,7 @@ class Pianoteq:
     @staticmethod
     def _find_installer_package():
         for fn in os.listdir(os.curdir):
-            if re.search(r'^pianoteq\w*_linux_v?\d*\.(7z|zip)$', fn) and os.path.isfile(fn):
+            if re.search(r'^pianoteq\w*_linux_(trial_)?v?\d*\.(7z|zip)$', fn) and os.path.isfile(fn):
                 return fn
         else:
             raise LookupError('Unable to find installer package.')
