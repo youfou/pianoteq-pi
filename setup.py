@@ -226,6 +226,9 @@ Restart=on-failure
 RestartSec=2s
 KillMode=control-group
 TimeoutSec=infinity
+LimitRTPRIO=90
+LimitNICE=-10
+LimitMEMLOCK=500000
 
 [Install]
 WantedBy=graphical.target
