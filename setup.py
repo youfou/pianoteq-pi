@@ -91,11 +91,11 @@ class RPOS:
         )
 
     def overclock_cpu(self, freq=None, voltage=None):
-        notify(f'Overclocking CPU: freq={freq} voltage={voltage} ...')
+        notify(f'Overclocking CPU: freq={freq} over_voltage_delta={voltage} ...')
         self._config_modifier(
             path=self.config_path,
-            rp_to_remove=re.compile(r'^\s*(arm_freq|over_voltage)\b'),
-            new_items=[f'arm_freq={freq or 2000}', f'over_voltage={voltage or 6}'] if freq else [],
+            rp_to_remove=re.compile(r'^\s*(arm_freq|over_voltage_delta|over_voltage)\b'),
+            new_items=[f'arm_freq={freq or 3000}', f'over_voltage_delta={voltage or 50000}'] if freq else [],
         )
 
     def disable_smsc95xx_turbo_mode(self):
@@ -305,11 +305,13 @@ def number_menu(callbacks: list):
 
 
 def ask_to_overclock_cpu():
-    oc_2000_6 = lambda: rp.overclock_cpu(2000, 6)
-    oc_1750_2 = lambda: rp.overclock_cpu(1750, 2)
+    oc_3000_5 = lambda: rp.overclock_cpu(3000, 50000)
+    oc_2000_6 = lambda: rp.overclock_cpu(2000, 60000)
+    oc_1750_2 = lambda: rp.overclock_cpu(1750, 20000)
     cancel_oc = lambda: rp.overclock_cpu()
     notify('Would you like to overclock the CPU of your Raspberry Pi?')
     return number_menu([
+        ('Overclock to 3000 MHz @ 5th voltage level (recommended for Pi5)', oc_3000_5),
         ('Overclock to 2000 MHz @ 6th voltage level', oc_2000_6),
         ('Overclock to 1750 MHz @ 2nd voltage level', oc_1750_2),
         ('Restore back to the stock CPU frequency and voltage', cancel_oc),
