@@ -8,8 +8,11 @@ import stat
 import subprocess
 import sys
 
-DEFAULT_INSTALL_LOCATION = '/home/pi/'
-CONFIG_PATH = '/home/pi/.config/pianoteq-pi.dbm'
+PIANOTEQ_VERSION = 8
+USERNAME = os.getlogin()
+HOME = f"/home/{USERNAME}"
+DEFAULT_INSTALL_LOCATION = HOME
+CONFIG_PATH = f'{HOME}/.config/pianoteq-pi.dbm'
 script_dir, script_filename = os.path.split(__file__)
 
 
@@ -121,7 +124,7 @@ rp = RPOS()
 
 
 class Pianoteq:
-    desktop_entry_path = '/home/pi/Desktop/pianoteq.desktop'
+    desktop_entry_path = f'{HOME}/Desktop/pianoteq.desktop'
     service_path = '/lib/systemd/system/pianoteq.service'
     all_arch_bits = ['arm-64bit', 'arm-32bit', 'x86-64bit']
 
@@ -134,7 +137,7 @@ class Pianoteq:
     def find_existing_installation(self):
         for root, folders, files in os.walk(self.parent_dir):
             for folder in folders:
-                m = re.search(r'^Pianoteq 7( \w+)?$', folder)
+                m = re.search(r'^Pianoteq ' + str(PIANOTEQ_VERSION) + r'( \w+)?$', folder)
                 if m:
                     path = os.path.join(root, folder)
                     if rp.arch_bit in os.listdir(path) and os.path.isdir(os.path.join(path, rp.arch_bit)):
@@ -188,7 +191,7 @@ class Pianoteq:
         notify('Creating start.sh for Pianoteq ...')
         start_sh_content = f"""#!/bin/bash
 
-exec_path="{self.pianoteq_dir}/{rp.arch_bit}/Pianoteq 7{self.edition_suffix}"
+exec_path="{self.pianoteq_dir}/{rp.arch_bit}/Pianoteq {PIANOTEQ_VERSION}{self.edition_suffix}"
 base_args="--multicore max --do-not-block-screensaver --midimapping TouchOSC"
 
 base_cmd=("${{exec_path}}" $base_args)
@@ -214,13 +217,13 @@ sudo cpufreq-set -r -g ondemand
     def create_service(self):
         notify('Creating service for Pianoteq ...')
         service_content = f"""[Unit]
-Description=Start Pianoteq 7{self.edition_suffix}
+Description=Start Pianoteq {PIANOTEQ_VERSION}{self.edition_suffix}
 After=graphical.target
 
 [Service]
-User=pi
+User={USERNAME}
 Environment=DISPLAY=:0
-Environment=XAUTHORITY=/home/pi/.Xauthority
+Environment=XAUTHORITY={HOME}/.Xauthority
 ExecStart='{self.pianoteq_dir}/start.sh' --headless
 Restart=on-failure
 RestartSec=2s
@@ -238,7 +241,7 @@ WantedBy=graphical.target
     def create_desktop_entry(self):
         notify('Creating desktop entry for Pianoteq ...')
         desktop_entry_content = f"""[Desktop Entry]
-Name=Pianoteq 7
+Name=Pianoteq {PIANOTEQ_VERSION}
 Exec="{self.pianoteq_dir}/start.sh"
 Type=Application
 Icon={self.pianoteq_dir}/icon.png
@@ -269,7 +272,7 @@ Terminal=false
         self.create_start_sh()
         self.create_desktop_entry()
         self.create_service()
-        run('chown', '-R', 'pi:pi', self.pianoteq_dir)
+        run('chown', '-R', f'{USERNAME}:{USERNAME}', self.pianoteq_dir)
         rp.set_default_resolution()
         rp.disable_smsc95xx_turbo_mode()
         rp.modify_account_limits()
@@ -324,7 +327,7 @@ if __name__ == '__main__':
             to_create = input(f'"{install_location}" does not exist. Would you like to create it now? (Y/n)')
             if to_create.strip().lower().startswith('y') or not to_create:
                 os.makedirs(install_location)
-                run('chown', 'pi:pi', install_location)
+                run('chown', f'{USERNAME}:{USERNAME}', install_location)
             else:
                 sys.exit(0)
         db['install_location'] = install_location
