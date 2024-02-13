@@ -8,8 +8,11 @@ import stat
 import subprocess
 import sys
 
-DEFAULT_INSTALL_LOCATION = '/home/pi/'
-CONFIG_PATH = '/home/pi/.config/pianoteq-pi.dbm'
+PIANOTEQ_VERSION = 8
+USERNAME = os.getlogin()
+HOME = f"/home/{USERNAME}"
+DEFAULT_INSTALL_LOCATION = HOME
+CONFIG_PATH = f'{HOME}/.config/pianoteq-pi.dbm'
 script_dir, script_filename = os.path.split(__file__)
 
 
@@ -88,11 +91,11 @@ class RPOS:
         )
 
     def overclock_cpu(self, freq=None, voltage=None):
-        notify(f'Overclocking CPU: freq={freq} voltage={voltage} ...')
+        notify(f'Overclocking CPU: freq={freq} over_voltage_delta={voltage} ...')
         self._config_modifier(
             path=self.config_path,
-            rp_to_remove=re.compile(r'^\s*(arm_freq|over_voltage)\b'),
-            new_items=[f'arm_freq={freq or 2000}', f'over_voltage={voltage or 6}'] if freq else [],
+            rp_to_remove=re.compile(r'^\s*(arm_freq|over_voltage_delta|over_voltage)\b'),
+            new_items=[f'arm_freq={freq or 3000}', f'over_voltage_delta={voltage or 50000}'] if freq else [],
         )
 
     def disable_smsc95xx_turbo_mode(self):
@@ -121,7 +124,7 @@ rp = RPOS()
 
 
 class Pianoteq:
-    desktop_entry_path = '/home/pi/Desktop/pianoteq.desktop'
+    desktop_entry_path = f'{HOME}/Desktop/pianoteq.desktop'
     service_path = '/lib/systemd/system/pianoteq.service'
     all_arch_bits = ['arm-64bit', 'arm-32bit', 'x86-64bit']
 
@@ -134,7 +137,7 @@ class Pianoteq:
     def find_existing_installation(self):
         for root, folders, files in os.walk(self.parent_dir):
             for folder in folders:
-                m = re.search(r'^Pianoteq 7( \w+)?$', folder)
+                m = re.search(r'^Pianoteq ' + str(PIANOTEQ_VERSION) + r'( \w+)?$', folder)
                 if m:
                     path = os.path.join(root, folder)
                     if rp.arch_bit in os.listdir(path) and os.path.isdir(os.path.join(path, rp.arch_bit)):
@@ -188,7 +191,7 @@ class Pianoteq:
         notify('Creating start.sh for Pianoteq ...')
         start_sh_content = f"""#!/bin/bash
 
-exec_path="{self.pianoteq_dir}/{rp.arch_bit}/Pianoteq 7{self.edition_suffix}"
+exec_path="{self.pianoteq_dir}/{rp.arch_bit}/Pianoteq {PIANOTEQ_VERSION}{self.edition_suffix}"
 base_args="--multicore max --do-not-block-screensaver --midimapping TouchOSC"
 
 base_cmd=("${{exec_path}}" $base_args)
@@ -214,13 +217,13 @@ sudo cpufreq-set -r -g ondemand
     def create_service(self):
         notify('Creating service for Pianoteq ...')
         service_content = f"""[Unit]
-Description=Start Pianoteq 7{self.edition_suffix}
+Description=Start Pianoteq {PIANOTEQ_VERSION}{self.edition_suffix}
 After=graphical.target
 
 [Service]
-User=pi
+User={USERNAME}
 Environment=DISPLAY=:0
-Environment=XAUTHORITY=/home/pi/.Xauthority
+Environment=XAUTHORITY={HOME}/.Xauthority
 ExecStart='{self.pianoteq_dir}/start.sh' --headless
 Restart=on-failure
 RestartSec=2s
@@ -238,7 +241,7 @@ WantedBy=graphical.target
     def create_desktop_entry(self):
         notify('Creating desktop entry for Pianoteq ...')
         desktop_entry_content = f"""[Desktop Entry]
-Name=Pianoteq 7
+Name=Pianoteq {PIANOTEQ_VERSION}
 Exec="{self.pianoteq_dir}/start.sh"
 Type=Application
 Icon={self.pianoteq_dir}/icon.png
@@ -269,7 +272,7 @@ Terminal=false
         self.create_start_sh()
         self.create_desktop_entry()
         self.create_service()
-        run('chown', '-R', 'pi:pi', self.pianoteq_dir)
+        run('chown', '-R', f'{USERNAME}:{USERNAME}', self.pianoteq_dir)
         rp.set_default_resolution()
         rp.disable_smsc95xx_turbo_mode()
         rp.modify_account_limits()
@@ -302,11 +305,13 @@ def number_menu(callbacks: list):
 
 
 def ask_to_overclock_cpu():
-    oc_2000_6 = lambda: rp.overclock_cpu(2000, 6)
-    oc_1750_2 = lambda: rp.overclock_cpu(1750, 2)
+    oc_3000_5 = lambda: rp.overclock_cpu(3000, 50000)
+    oc_2000_6 = lambda: rp.overclock_cpu(2000, 60000)
+    oc_1750_2 = lambda: rp.overclock_cpu(1750, 20000)
     cancel_oc = lambda: rp.overclock_cpu()
     notify('Would you like to overclock the CPU of your Raspberry Pi?')
     return number_menu([
+        ('Overclock to 3000 MHz @ 5th voltage level (recommended for Pi5)', oc_3000_5),
         ('Overclock to 2000 MHz @ 6th voltage level', oc_2000_6),
         ('Overclock to 1750 MHz @ 2nd voltage level', oc_1750_2),
         ('Restore back to the stock CPU frequency and voltage', cancel_oc),
@@ -324,7 +329,7 @@ if __name__ == '__main__':
             to_create = input(f'"{install_location}" does not exist. Would you like to create it now? (Y/n)')
             if to_create.strip().lower().startswith('y') or not to_create:
                 os.makedirs(install_location)
-                run('chown', 'pi:pi', install_location)
+                run('chown', f'{USERNAME}:{USERNAME}', install_location)
             else:
                 sys.exit(0)
         db['install_location'] = install_location
